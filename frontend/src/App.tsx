@@ -26,7 +26,6 @@ function App() {
 
       try {
         const latestLedger = await server.getLatestLedger();
-
         const response = await server.getEvents({
           startLedger: latestLedger.sequence - 10,
           filters: [
@@ -50,14 +49,16 @@ function App() {
     };
 
     const intervalId = setInterval(pollEvents, 4000);
-
     return () => clearInterval(intervalId);
   }, []);
 
   const handleConnect = async () => {
     try {
+      await StellarWalletsKit.authModal();
+      
       const { address } = await StellarWalletsKit.getAddress();
       setPubKey(address);
+      
     } catch (error) {
       console.error("Failed to connect wallet:", error);
     }

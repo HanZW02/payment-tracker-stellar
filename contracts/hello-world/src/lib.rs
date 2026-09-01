@@ -1,23 +1,56 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, vec, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol};
+
+// Payment Status
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PaymentStatus {
+    Pending,
+    Completed,
+    Failed,
+}
+
+// Payment Data Structure
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PaymentRecord {
+    pub customer: Address,
+    pub amount: i128,
+    pub status: PaymentStatus,
+}
 
 #[contract]
-pub struct Contract;
+pub struct PaymentTrackerContract;
 
-// This is a sample contract. Replace this placeholder with your own contract logic.
-// A corresponding test example is available in `test.rs`.
-//
-// For comprehensive examples, visit <https://github.com/stellar/soroban-examples>.
-// The repository includes use cases for the Stellar ecosystem, such as data storage on
-// the blockchain, token swaps, liquidity pools, and more.
-//
-// Refer to the official documentation:
-// <https://developers.stellar.org/docs/build/smart-contracts/overview>.
 #[contractimpl]
-impl Contract {
-    pub fn hello(env: Env, to: String) -> Vec<String> {
-        vec![&env, String::from_str(&env, "Hello"), to]
+impl PaymentTrackerContract {
+    pub fn create_payment(env: Env, order_id: Symbol, customer: Address, amount: i128) {
+        customer.require_auth();
+
+        let new_payment = PaymentRecord {
+            customer,
+            amount,
+            status: PaymentStatus::Pending,
+        };
+
+        env.storage().persistent().set(&order_id, &new_payment);
+
+        env.events().publish((symbol_short!("created"), order_id), new_payment);
     }
 }
 
-mod test;
+// Change Status
+    pub fn complete_payment(env: Env, order_id: Symbol) {
+        let mut payment: PaymentRecord = env.storage().persistent().get(&order_id).unwrap();
+
+        payment.status = PaymentStatus::Completed;
+
+        env.storage().persistent().set(&order_id, &payment);
+
+        env.events().publish((symbol_short!("completed"), order_id.clone()), payment);
+    }
+
+    // Read Payment Detail
+    pub fn get_payment(env: Env, order_id: Symbol) -> PaymentRecord {
+        env.storage().persistent().get(&order_id).unwrap()
+    }
